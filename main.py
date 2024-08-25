@@ -22,7 +22,7 @@ def run_detection_loop(detection_handler, ws_handler):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         except Exception as e:
-            logging.error(f"เกิดข้อผิดพลาดในลูปการตรวจจับ: {e}")
+            logging.info(f"เกิดข้อผิดพลาดในลูปการตรวจจับ: {e}")
 
     cv2.destroyAllWindows()
 
@@ -38,10 +38,10 @@ def main():
     if config.test_model:
         pass
     else:
+        logging.info("เริ่ม GPS")
         gps.start()
-        time.sleep(5)
-        logging.info("โปรแกรมหลักทำงานต่อหลังจากเริ่ม GPS")
-        
+        time.sleep(3)
+        logging.info("เริ่มทำงานโปรแกรมหลัก")
         run_detection_loop(detection_handler, ws_handler)
            
 if __name__ == "__main__":

@@ -1,15 +1,20 @@
 import json
 import threading
+import time
 from datetime import datetime
 import websocket
 from config import config
 import logging
+
 class WebSocketHandler:
     def __init__(self, detection_handler, gps):
         self.url = f"ws://{config.backEnd_ip}:{config.backEnd_Port}/ws/device/{config.device_id}"
         self.ws = None
         self.detection_handler = detection_handler
         self.gps = gps
+        self.reconnect_interval = 10  # ระยะเวลาในการพยายามเชื่อมต่อใหม่ (วินาที)
+        self.is_connected = False
+        self.should_run = True
         self.connect()
 
     def connect(self):
@@ -22,26 +27,53 @@ class WebSocketHandler:
         )
 
     def _on_message(self, ws, message):
-        print(f"ได้รับข้อความ: {message}")
+        logging.info(f"ได้รับข้อความ: {message}")
         self.handle_message(message)
 
     def _on_error(self, ws, error):
-        print(f"เกิดข้อผิดพลาด: {error}")
+        logging.info(f"เกิดข้อผิดพลาด: {error}")
 
     def _on_close(self, ws, close_status_code, close_msg):
-        print("การเชื่อมต่อถูกปิด")
+        logging.info("การเชื่อมต่อถูกปิด")
+        self.is_connected = False
 
     def _on_open(self, ws):
-        print("การเชื่อมต่อเปิดแล้ว")
+        logging.warning("การเชื่อมต่อเปิดแล้ว")
+        self.is_connected = True
+
+    def reconnect(self):
+        while not self.is_connected and self.should_run:
+            logging.warning(f"กำลังพยายามเชื่อมต่อใหม่ในอีก {self.reconnect_interval} วินาที...")
+            time.sleep(self.reconnect_interval)
+            self.connect()
+            self.ws.run_forever(reconnect=5)  # จะลองเชื่อมต่อใหม่ทุก 5 วินาทีโดยอัตโนมัติ
 
     def send_message(self, message):
-        if self.ws:
+        if self.ws and self.is_connected:
             self.ws.send(message)
         else:
-            print("ไม่สามารถส่งข้อความได้: WebSocket ไม่ได้เชื่อมต่อ")
+            logging.info("ไม่สามารถส่งข้อความได้: WebSocket ไม่ได้เชื่อมต่อ")
 
     def start(self):
-        threading.Thread(target=self.ws.run_forever, daemon=True).start()
+        def run_websocket():
+            while self.should_run:
+                try:
+                    self.ws.run_forever(reconnect=5)
+                except Exception as e:
+                    logging.info(f"เกิดข้อผิดพลาดในการเชื่อมต่อ WebSocket: {e}")
+                if not self.is_connected:
+                    self.reconnect()
+
+        self.websocket_thread = threading.Thread(target=run_websocket)
+        self.websocket_thread.daemon = True
+        self.websocket_thread.start()
+
+    def stop(self):
+        self.should_run = False
+        if self.ws:
+            self.ws.close()
+        if self.websocket_thread:
+            self.websocket_thread.join()
 
     def send_bottle_result(self, detection_result):
         payload = {
@@ -59,9 +91,9 @@ class WebSocketHandler:
         payload = {
             "sendto": "backend",
             "body": {
-                "gpsStatus" : gps_result.status,
-                "latitude": gps_result.latitude,
-                "longitude": gps_result.longitude,
+                "gpsStatus": gps_result.get("status", "not_ready"),
+                "latitude": gps_result.get("latitude", 0),
+                "longitude": gps_result.get("longitude", 0),
                 "deviceId": config.device_id
             }
         }
@@ -83,14 +115,13 @@ class WebSocketHandler:
                     gps_result = self.get_gps_data()
                     self.send_gps_result(gps_result)
         except json.JSONDecodeError:
-            print("ไม่สามารถแปลงข้อความเป็น JSON ได้")
+            logging.info("ไม่สามารถแปลงข้อความเป็น JSON ได้")
         except Exception as e:
-            print(f"เกิดข้อผิดพลาดในการจัดการข้อความ WebSocket: {e}")
+            logging.info(f"เกิดข้อผิดพลาดในการจัดการข้อความ WebSocket: {e}")
 
     def get_gps_data(self):
-        # สมมติว่าเรามีเมธอดใน GPS class ที่ให้ข้อมูล GPS ล่าสุด
         return {
-            "status": "ready",  # หรือ "not_ready" ขึ้นอยู่กับสถานะจริง
+            "status": "ready" if self.gps.lat != 0 and self.gps.lng != 0 else "not_ready",
             "latitude": self.gps.lat,
             "longitude": self.gps.lng
         }

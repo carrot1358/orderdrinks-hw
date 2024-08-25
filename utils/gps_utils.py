@@ -4,10 +4,11 @@ import time
 import string
 import pynmea2
 import threading
-import json
 from config import config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# ตั้งค่า logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class GPS:
     def __init__(self):
@@ -15,18 +16,18 @@ class GPS:
         self.lng = 0
         self.running = False
         self.thread = None
-        logging.info("GPS initialized")
+        logger.info("GPS initialized")
 
     def start(self):
-        logging.info("Starting GPS")
+        logger.info("Starting GPS")
         self.running = True
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.thread.start()
-        logging.info("GPS thread started")
+        logger.info("GPS thread started")
 
     def stop(self):
-        logging.info("Stopping GPS")
+        logger.info("Stopping GPS")
         self.running = False
         if self.thread:
             self.thread.join()
@@ -47,13 +48,16 @@ class GPS:
                         self.lat = newmsg.latitude
                         self.lng = newmsg.longitude
                         gps = f"Latitude={self.lat} and Longitude={self.lng}"
-                        print(gps)
+                        if self.lat != 0 and self.lng != 0:
+                            logger.info(gps)
+                        else:
+                            logger.info("Non-GPRMC data received or noise")
                     except pynmea2.ParseError as e:
-                        print(f"Failed to parse NMEA sentence: {e}")
+                        logger.info(f"Failed to parse NMEA sentence: {e}")
                 else:
-                    print("Non-GPRMC data received or noise")
+                    logger.info("Non-GPRMC data received or noise")
 
                 time.sleep(1)  # เพิ่มการหน่วงเวลาเล็กน้อยเพื่อลดการใช้ CPU
 
         except Exception as e:
-            logging.error(f"An error occurred in the GPS thread: {e}")
+            logger.info(f"An error occurred in the GPS thread: {e}")
