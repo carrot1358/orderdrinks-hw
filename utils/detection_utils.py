@@ -10,6 +10,7 @@ class DetectionHandler:
     def __init__(self):
         self.picam2 = self.setup_camera()
         self.model = self.initialize_model()
+        self.ensure_output_directory()
 
     def setup_camera(self):
         picam2 = Picamera2()
@@ -23,8 +24,17 @@ class DetectionHandler:
         project = rf.workspace(config.Roboflow_workspace).project(config.Roboflow_project)
         return project.version(config.Roboflow_version, local=f"http://{config.inference_ip}:{config.inference_port}/").model
 
-    def Detect(self, debug=False):
+    def ensure_output_directory(self):
+        directories = ['image/output', 'image/test_image']
+        for directory in directories:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                logging.info(f"สร้างโฟลเดอร์ {directory} แล้ว")
+
+    def Detect(self, debug=True):
         image = self.picam2.capture_array()
+        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         prediction = self.model.predict(image, confidence=config.confidence_threshold)
         if debug:
             self.save_debug_image(image, prediction)
@@ -34,7 +44,9 @@ class DetectionHandler:
         for pred in prediction:
             x, y, w, h = pred['x'], pred['y'], pred['width'], pred['height']
             cv2.rectangle(image, (int(x - w/2), int(y - h/2)), (int(x + w/2), int(y + h/2)), (0, 255, 0), 2)
-        cv2.imwrite('output/output_marked.png', image)
+        output_path = 'image/output/output_marked.png'
+        cv2.imwrite(output_path, image)
+        logging.info(f"บันทึกภาพ debug ที่ {output_path}")
 
     def count_water(self, prediction):
         has_water = sum(1 for pred in prediction if pred['class'] == 'has_water')
@@ -47,7 +59,7 @@ class DetectionHandler:
         has_water, no_water = self.count_water(data)
         
         image_base64 = ""
-        output_image_path = 'output/output_marked.png'
+        output_image_path = 'image/output/output_marked.png'
         if os.path.exists(output_image_path):
             with open(output_image_path, 'rb') as image_file:
                 image_base64 = base64.b64encode(image_file.read()).decode('utf-8')

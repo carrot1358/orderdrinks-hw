@@ -10,8 +10,7 @@ from config import config
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class GPS:
-    def __init__(self, ws_handler):
-        self.ws_handler = ws_handler
+    def __init__(self):
         self.lat = 0
         self.lng = 0
         self.running = False
@@ -38,8 +37,6 @@ class GPS:
             ser = serial.Serial(port, baudrate=9600, timeout=0.5)
             dataout = pynmea2.NMEAStreamReader()
 
-            last_send_time = 0
-
             while self.running:
                 newdata = ser.readline()
                 newdata = newdata.decode('ascii', errors='ignore').strip()
@@ -51,31 +48,12 @@ class GPS:
                         self.lng = newmsg.longitude
                         gps = f"Latitude={self.lat} and Longitude={self.lng}"
                         print(gps)
-
-                        current_time = time.time()
-                        if current_time - last_send_time >= 10:
-                            self.send_gps_data("ready")
-                            last_send_time = current_time
-
                     except pynmea2.ParseError as e:
                         print(f"Failed to parse NMEA sentence: {e}")
                 else:
-                    self.send_gps_data("not_ready")
                     print("Non-GPRMC data received or noise")
 
-                time.sleep(10)  # เพิ่มการหน่วงเวลาเล็กน้อยเพื่อลดการใช้ CPU
+                time.sleep(1)  # เพิ่มการหน่วงเวลาเล็กน้อยเพื่อลดการใช้ CPU
 
         except Exception as e:
             logging.error(f"An error occurred in the GPS thread: {e}")
-
-    def send_gps_data(self,status):
-        message = {
-            "sendto": "backend",
-            "body": {
-                "gpsStatus" : status,
-                "latitude": self.lat,
-                "longitude": self.lng,
-                "deviceId": config.device_id
-            }
-        }
-        self.ws_handler.send_message(json.dumps(message))
