@@ -6,6 +6,9 @@ from config import config
 from utils.detection_utils import create_detection_handler
 from utils.websocket_utils import create_websocket_handler
 from utils.gps_utils import GPS
+import requests
+import numpy as np
+import json
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -26,6 +29,12 @@ def run_detection_loop(detection_handler, ws_handler):
 
     cv2.destroyAllWindows()
 
+def test_detection(detection_handler, ws_handler):
+    # ตรวจจับด้วยรูปภาพทดสอบ
+    image_path = "./image/test_image/Test_image.jpg"
+    image = cv2.imread(image_path)
+    detection_handler.Detect_test(image)
+
 def main():
     """
     ฟังก์ชันหลักสำหรับการทำงานของระบบตรวจจับและการสื่อสาร
@@ -36,7 +45,8 @@ def main():
     ws_handler.start()
 
     if config.test_model:
-        pass
+        logging.info("ทำการตรวจจับด้วยรูปภาพทดสอบ")
+        test_detection(detection_handler, ws_handler)
     else:
         logging.info("เริ่ม GPS")
         gps.start()

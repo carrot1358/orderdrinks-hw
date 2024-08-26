@@ -1,6 +1,6 @@
 #### Basic Configuration for the application ####
 # Configuration for the application
-Test_Model: false  # Set to true to test the model
+Test_Model: true  # Set to true to test the model
 
 # Detection settings
 confidence_threshold: 0.5
@@ -10,7 +10,7 @@ debug: true
 
 #### Advanced Configuration for the application ####
 # Backend settings
-backEnd_ip: "orderdrinks.webhop.me" # ip address of the backend server
+backEnd_ip: "172.25.11.233" # ip address of the backend server
 backEnd_Port: 9000
 device_id: "70cb8bfc-5b67-4115-8db6-d371e22b430b"
 
