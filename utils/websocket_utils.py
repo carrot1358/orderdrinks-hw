@@ -8,11 +8,11 @@ import logging
 
 class WebSocketHandler:
     def __init__(self, detection_handler, gps):
-        self.url = f"ws://{config.backEnd_ip}:{config.backEnd_Port}/ws/device/{config.device_id}"
+        self.url = f"{config.websocket_url}/{config.device_id}"
         self.ws = None
         self.detection_handler = detection_handler
         self.gps = gps
-        self.reconnect_interval = 10  # ระยะเวลาในการพยายามเชื่อมต่อใหม่ (วินาที)
+        self.reconnect_interval = 10
         self.is_connected = False
         self.should_run = True
         self.connect()
@@ -75,21 +75,25 @@ class WebSocketHandler:
         if self.websocket_thread:
             self.websocket_thread.join()
 
-    def send_bottle_result(self, detection_result):
+    def send_bottle_result(self, detection_result, sendto):
         payload = {
-            "sendto": "backend",
+            "sendto": sendto,
             "body": {
-                "order_id": detection_result["order_id"],
                 "bottle_count": detection_result["bottle_count"],
+                "has_water": detection_result["has_water"],
+                "no_water": detection_result["no_water"],
                 "time_completed": datetime.now().isoformat(),
                 "image": detection_result["image"]
             }
         }
+        if "order_id" in detection_result:
+            payload["body"]["order_id"] = detection_result["order_id"]
+        
         self.send_message(json.dumps(payload))
         
     def send_gps_result(self, gps_result):
         payload = {
-            "sendto": "backend",
+            "sendto": "both",
             "body": {
                 "gpsStatus": gps_result.get("status", "not_ready"),
                 "latitude": gps_result.get("latitude", 0),
@@ -102,18 +106,20 @@ class WebSocketHandler:
     def handle_message(self, message):
         try:
             data = json.loads(message)
+            logging.info(f"ได้รับข้อความ: {data}")
             if data.get("sendto") == "device" and "body" in data:
                 body = data["body"]
                 logging.info(f"ได้รับ Data: {body}")
-                if body.get("message") == "need_bottle" and "orderId" in body:
-                    order_id = body["orderId"]
+                if body.get("topic") == "need_bottle_image":
+                    order_id = body.get("orderId")
                     result = self.detection_handler.perform_detection(order_id)
                     if result:
-                        self.send_bottle_result(result)
-                    
+                        sendto = "backend" if order_id else "both"
+                        self.send_bottle_result(result, sendto)
                     # ส่งข้อมูล GPS ทุกครั้งที่มีการตรวจจับ
                     gps_result = self.get_gps_data()
                     self.send_gps_result(gps_result)
+
         except json.JSONDecodeError:
             logging.info("ไม่สามารถแปลงข้อความเป็น JSON ได้")
         except Exception as e:
