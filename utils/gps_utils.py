@@ -51,6 +51,8 @@ class GPS:
                         if self.lat != 0 and self.lng != 0:
                             logger.info(gps)
                         else:
+                            self.lat = 0
+                            self.lng = 0
                             logger.info("Non-GPRMC data received or noise")
                     except pynmea2.ParseError as e:
                         logger.info(f"Failed to parse NMEA sentence: {e}")
