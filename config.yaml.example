@@ -1,0 +1,31 @@
+#### Basic Configuration for the application ####
+# Configuration for the application
+Test_Model: true  # Set to true to test the model
+Test_Camera: false # Set to true to test the camera ( Test_model must be True)
+
+# Detection settings
+confidence_threshold: 0.5 # Set the confidence threshold for the detection model
+debug: true # Set to true to enable debug mode. Debug mode will print the detection results to image files.
+#############################################
+
+
+#### Advanced Configuration for the application ####
+# Backend settings
+websocket_url: "your websocket url" # "wss://backend.nattapad.me/ws/device"
+backEnd_ip: "your backend ip" # ip address of the backend server
+backEnd_Port: 9000
+device_id: "your device id"
+
+enable_websocket: true # Set to true to enable websocket Section
+enable_RestAPI: false # Set to true to enable RestAPI Section
+
+# Inference server settings
+inference_ip: "your inference ip" # ip address of the inference server
+inference_port: 9001 # port of the inference server
+
+# Roboflow settings
+Roboflow_api_key: "your roboflow api key" # API key for Roboflow
+Roboflow_workspace: "your roboflow workspace" # Workspace for Roboflow
+Roboflow_project: "your roboflow project" # Project for RoboFlow
+Roboflow_version: 1 # Version of the project
+#############################################

@@ -1,0 +1,31 @@
+#### Basic Configuration for the application ####
+# Configuration for the application
+Test_Model: true  # Set to true to test the model
+Test_Camera: false # Set to true to test the camera ( Test_model must be True)
+
+# Detection settings
+confidence_threshold: 0.5
+debug: true
+#############################################
+
+
+#### Advanced Configuration for the application ####
+# Backend settings
+websocket_url: "wss://backend.nattapad.me/ws/device"
+backEnd_ip: "172.25.11.233" # ip address of the backend server
+backEnd_Port: 9000
+device_id: "3d80c258-24de-4328-8fe4-658f167fe4d9"
+
+enable_websocket: true # Set to true to enable websocket Section
+enable_RestAPI: false # Set to true to enable RestAPI Section
+
+# Inference server settings
+inference_ip: "localhost" # ip address of the inference server
+inference_port: 9001 # port of the inference server
+
+# Roboflow settings
+Roboflow_api_key: "Z68TgZELV2akAABCATNm" # API key for Roboflow
+Roboflow_workspace: "roboflowai" # Workspace for Roboflow
+Roboflow_project: "gallon-bottle" # Project for RoboFlow
+Roboflow_version: 7 # Version of the project
+#############################################
