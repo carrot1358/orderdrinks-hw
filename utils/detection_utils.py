@@ -5,6 +5,7 @@ import os
 from picamera2 import Picamera2
 from roboflow import Roboflow
 from config import config
+import numpy as np
 
 class DetectionHandler:
     def __init__(self):
@@ -44,8 +45,32 @@ class DetectionHandler:
         prediction = self.model.predict(image, confidence=config.confidence_threshold)
         if debug:
             self.save_debug_image(image, prediction)
-        return prediction
+        
+        logging.info("ข้อมูลการทำนาย:")
+        logging.info(f"จำนวนการทำนาย: {len(prediction)}")
+        
+        simplified_predictions = []
+        for i, pred in enumerate(prediction):
+            json_pred = pred.json()
+            simplified_pred = {
+                'x': json_pred['x'],
+                'y': json_pred['y'],
+                'width': json_pred['width'],
+                'height': json_pred['height'],
+                'confidence': json_pred['confidence'],
+                'class': json_pred['class']
+            }
+            simplified_predictions.append(simplified_pred)
+            logging.info(f"การทำนายที่ {i+1}: {simplified_pred}")
+        
+        return simplified_predictions
 
+    def get_image(self):
+        image = self.picam2.capture_array()
+        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return image
+    
     def save_debug_image(self, image, prediction):
         for pred in prediction:
             x, y, w, h = pred['x'], pred['y'], pred['width'], pred['height']
@@ -79,13 +104,18 @@ class DetectionHandler:
         logging.info(f"บันทึกภาพ debug ที่ {output_path}")
 
     def count_water(self, prediction):
-        has_water = sum(1 for pred in prediction if pred['class'] == 'has_water')
-        no_water = sum(1 for pred in prediction if pred['class'] == 'no_water')
+        has_water = sum(1 for pred in prediction if pred['class'].lower() == 'has-water')
+        no_water = sum(1 for pred in prediction if pred['class'].lower() == 'no-water')
         return has_water, no_water
 
-    def perform_detection(self, order_id):
-        logging.info(f"กำลังทำการตรวจจับสำหรับ order_id: {order_id}")
-        data = self.Detect(config.debug)
+    def perform_detection(self, order_id=None, image=None):
+        if image is None:
+            logging.info("กำลังทำการตรวจจับด้วยกล้อง")
+            data = self.Detect(config.debug)
+        else:
+            logging.info("กำลังทำการตรวจจับด้วยรูปภาพที่ให้มา")
+            data = self.Detect_test(image, config.debug)
+        
         has_water, no_water = self.count_water(data)
         
         image_base64 = ""
@@ -99,11 +129,21 @@ class DetectionHandler:
         bottle_count = has_water + no_water 
         logging.info(f"จำนวนขวด: {bottle_count}")
 
-        return {
-            "order_id": order_id,
-            "bottle_count": bottle_count,
-            "image": image_base64
-        }
+        if order_id is not None:
+            return {
+                "order_id": order_id,
+                "bottle_count": bottle_count,
+                "has_water": has_water,
+                "no_water": no_water,
+                "image": image_base64
+            }
+        else:
+            return {
+                "bottle_count": bottle_count,
+                "has_water": has_water,
+                "no_water": no_water,
+                "image": image_base64
+            }
 
 def create_detection_handler():
     return DetectionHandler()
